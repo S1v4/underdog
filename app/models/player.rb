@@ -15,33 +15,31 @@ class Player < ApplicationRecord
   end
 
   def self.search(search_params={})
-    query = "players.first_name IS NOT NULL"
+    query_params = {}
 
-    if search_params[:age].present?
-      query.concat(" AND #{Player.sanitize_sql_array(["players.age = ?", search_params[:age].to_i])}")
+    if search_params[:position]
+      query_params[:position] = search_params[:position].to_s
     end
 
-    if search_params[:position].present? 
-      query.concat(" AND #{Player.sanitize_sql_array(["players.position = ?", search_params[:position]])}")
+    if search_params[:age]
+      query_params[:age] = search_params[:age].to_i
+    elsif search_params[:min_age] && search_params[:max_age]
+      query_params[:age] = search_params[:min_age].to_i..search_params[:max_age].to_i
+    elsif search_params[:min_age]
+      query_params[:age] = search_params[:min_age].to_i..
+    elsif search_params[:max_age]
+      query_params[:age] = ..search_params[:max_age].to_i
     end
 
-    if search_params[:min_age].present?
-      query.concat(" AND #{Player.sanitize_sql_array(["players.age >= ?", search_params[:min_age].to_i])}")
-    end
-
-    if search_params[:max_age].present?
-      query.concat(" AND #{Player.sanitize_sql_array(["players.age <= ?", search_params[:max_age].to_i])}")
+    if search_params[:sport]
+      query_params[:sports] = { name: search_params[:sport].to_s }
     end
 
     if search_params[:last_name_first_character].present?
-      query.concat(" AND players.last_name IS NOT NULL and #{Player.sanitize_sql_array(["SUBSTR(players.last_name, 1, 1) = ?", search_params[:last_name_first_character]])}")
-    end
-
-    if search_params[:sport].present?
-      query.concat(" AND #{Player.sanitize_sql_array(["sports.name = ?", search_params[:sport]])}")
-    end
-
-    joins(:sport).where(query)
+      Player.where.not(last_name: nil).where("SUBSTR(players.last_name, 1, 1) = ?", search_params[:last_name_first_character].to_s)
+    else
+      Player
+    end.joins(:sport).where(query_params)
   end
 
   private
